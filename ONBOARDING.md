@@ -27,8 +27,7 @@
 | 파일 | 역할 |
 |---|---|
 | `generate_plan.py` | **생성기 본체.** 입력 JSON → 템플릿 치환 → `.docx` 출력. 고객사명 안전장치, 일정 재계산, 변경 이력, PDF/HWP 변환 옵션 포함 |
-| `convert.py` | (선택) 생성된 `.docx` → PDF(Word COM)/HWP(한컴 COM) 변환. 서식 보존 |
-| `register_hwp.py` | (선택) HWP 자동화용 한컴 보안 모듈 1회 등록 (pyhwpx의 DLL 사용) |
+| `convert.py` | (선택) 생성된 `.docx` → PDF 변환 (MS Word COM). 서식 보존 |
 | `draft_inputs.py` | (선택) 자유 서술 → 입력 JSON 초안 생성 (Gemini, JSON 출력 모드) |
 | `call_gemini.py` | Gemini API 호출 예제 + `.env` 키 로드. `load_api_key()`를 다른 스크립트가 재사용 |
 | `gemini_dev.py` | (선택) Gemini 개발 보조 CLI. 컨텍스트+소스+질문 전송, 민감 파일 차단 |
@@ -120,13 +119,13 @@ python draft_inputs.py --brief "고객사 PoC 6주, 7/6 시작, M365·기간계 
 python gemini_dev.py --file generate_plan.py "PDF 출력 옵션 추가 방법은?"
 ```
 
-**PDF / HWP 출력** — 서식 보존을 위해 설치된 오피스로 `.docx`를 변환
+**PDF 출력** — 서식 보존을 위해 설치된 MS Word로 `.docx`를 변환 (✅ 검증됨)
 ```bash
-python generate_plan.py ... --pdf --hwp           # 생성과 동시에 변환
-python convert.py "out/수행계획서_생성본.docx" --pdf   # 기존 docx만 변환
+python generate_plan.py ... --pdf                 # 생성과 동시에 PDF
+python convert.py "out/수행계획서_생성본.docx"        # 기존 docx만 PDF로 변환
 ```
-> PDF=MS Word(✅ 검증됨). HWP=한컴오피스 필요 + `pip install pyhwpx && python register_hwp.py`(보안 모듈 1회 등록).
-> 단 한컴 2018은 COM `Open`이 외부 포맷(docx 등)을 못 열어 자동 변환이 안 됨 → 한컴 GUI에서 수동 "HWP로 저장" 권장.
+> **HWP는 수동**: 생성된 `.docx`/PDF를 한컴오피스에서 열어 "다른 이름으로 저장 → *.hwp".
+> (한컴 2018 등은 COM `Open`이 docx 가져오기를 지원하지 않아 자동 변환을 넣지 않음)
 
 **에이전트형 코딩 (Gemini CLI)** — `.env`(키)·`GEMINI.md`(컨텍스트) 자동 인식
 ```bash
@@ -186,9 +185,8 @@ python generate_plan.py ... --no-history                         # 이번 실행
 - KPI·회의주기 등 표기 변형이 큰 항목은 자동 치환하지 않고 콘솔에 보고만 함.
 - Gemini 무료 등급은 **하루 요청 수 제한**(모델별, 예: 20/일)이 있어 에이전트형 CLI는
   쉽게 소진된다. 막히면 다음 날 리셋 또는 유료 등급으로 전환.
-- HWP 변환: `register_hwp.py`로 보안 모듈을 등록하면 보안창 멈춤은 해결되나, **한컴 2018은
-  COM `Open`이 .docx/.doc/.rtf 등 외부 포맷을 열지 못해**(SaveAs는 정상) 자동 변환이 안 된다.
-  → 생성된 `.docx`/PDF를 한컴 GUI에서 열어 "다른 이름으로 저장 → HWP". (다른 한컴 빌드에선 COM 변환이 될 수 있음)
+- HWP 자동 변환은 제공하지 않는다. 한컴 2018은 COM `Open`이 .docx/.doc/.rtf 등 외부 포맷을
+  열지 못한다(SaveAs는 정상). → 생성된 `.docx`/PDF를 한컴 GUI에서 열어 "다른 이름으로 저장 → *.hwp".
 
 ---
 
@@ -199,8 +197,8 @@ python generate_plan.py ... --no-history                         # 이번 실행
 - ✅ Gemini 연계: 키 로드/호출, 자유 서술 → 입력 초안, 개발 보조(gemini_dev / Gemini CLI)
 - ✅ 수정·재생성 + 변경 이력
 - ✅ 빠진 값 체크: 필수값 누락·미확정·형식오류 일괄 검증(차단), 선택값 미입력 알림 (`validate_inputs`)
-- ✅ 출력 포맷 확장: `--pdf`(Word)/`--hwp`(한컴) 변환 (`convert.py`)
-- ⏳ 다음(후보): HWP 보안 모듈 자동 등록, 일정 단계 구성 편집, 부분 서식 보존 개선
+- ✅ 출력 포맷 확장: `--pdf`(MS Word) 자동 변환 (`convert.py`). HWP는 한컴 수동 저장.
+- ⏳ 다음(후보): 일정 단계 구성 편집, 부분 서식 보존 개선
 
 ---
 

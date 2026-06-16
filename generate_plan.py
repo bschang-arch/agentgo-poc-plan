@@ -461,8 +461,6 @@ def main():
                     help="이번 실행을 변경 이력에 기록하지 않음")
     ap.add_argument("--pdf", action="store_true",
                     help="생성된 .docx 를 PDF로도 변환 (MS Word 필요)")
-    ap.add_argument("--hwp", action="store_true",
-                    help="생성된 .docx 를 HWP로도 변환 (한컴오피스 필요. 보안 승인 창 허용 필요)")
     args = ap.parse_args()
 
     out_path = Path(args.output)
@@ -572,21 +570,15 @@ def main():
         append_history(hist_path, out_path, data, change_log)
         print(f"이력 기록: {hist_path}  (--show-history 로 조회)")
 
-    # 출력 포맷 확장: 서식 보존을 위해 새로 렌더링하지 않고 설치된 오피스로 .docx 를 변환.
+    # 출력 포맷 확장(PDF): 서식 보존을 위해 새로 렌더링하지 않고 설치된 MS Word로 변환.
     # 변환 실패는 검토 항목으로만 남기고, 이미 저장된 .docx 생성은 성공으로 둔다.
-    if args.pdf or args.hwp:
+    # (HWP는 자동 변환하지 않음 — 생성된 .docx/PDF를 한컴에서 열어 "다른 이름으로 저장 → HWP")
+    if args.pdf:
         import convert
-        if args.pdf:
-            try:
-                print(f"PDF 변환 완료: {convert.to_pdf(out_path)}")
-            except Exception as e:
-                review_notes.append(f"PDF 변환 실패({type(e).__name__}: {e}) — .docx 는 정상 생성됨")
-        if args.hwp:
-            print("  (HWP: 한컴 보안 승인 창이 뜨면 '허용'하세요. 보안 모듈 미등록 시 멈출 수 있음)")
-            try:
-                print(f"HWP 변환 완료: {convert.to_hwp(out_path)}")
-            except Exception as e:
-                review_notes.append(f"HWP 변환 실패({type(e).__name__}: {e}) — .docx 는 정상 생성됨")
+        try:
+            print(f"PDF 변환 완료: {convert.to_pdf(out_path)}")
+        except Exception as e:
+            review_notes.append(f"PDF 변환 실패({type(e).__name__}: {e}) — .docx 는 정상 생성됨")
 
     # 검토 필요 항목 요약(본문 오염 없이 콘솔로만)
     print("\n[확인 필요 — 제출 전 검토]")
