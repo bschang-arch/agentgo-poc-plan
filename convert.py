@@ -54,27 +54,32 @@ def to_pdf(docx_path) -> Path:
 
 def to_hwp(docx_path) -> Path:
     """한컴오피스 COM으로 .docx → .hwp. 같은 이름의 .hwp 경로를 반환.
-    한컴이 docx 가져오기를 지원해야 하며, 보안 모듈/자동화 설정에 따라 실패할 수 있다."""
+
+    한컴 자동화는 파일 접근 시 '보안 승인 창'이 떠 헤드리스에서 멈춘다. 이를 막으려면
+    먼저 `python register_hwp.py` 로 보안 모듈을 레지스트리에 1회 등록해야 한다.
+    그러면 RegisterModule 호출로 모듈이 로드되어 보안창 없이 변환된다."""
     src = Path(docx_path)
     if not src.exists():
         raise FileNotFoundError(f"원본 없음: {src}")
     out = src.with_suffix(".hwp")
 
     import pythoncom
-    import win32com.client as win32
+    from win32com.client import dynamic
     pythoncom.CoInitialize()
     hwp = None
     try:
-        hwp = win32.DispatchEx("HWPFrame.HwpObject")
-        # 보안 모듈이 등록돼 있으면 자동화 중 보안창을 억제한다(없으면 무시).
+        # 순수 late-binding으로 생성: pywin32 gencache(makepy)의 순환 임포트 버그
+        # (Python 3.14 호환성)를 피해 COM 메서드 호출이 정상 마샬링되게 한다.
+        hwp = dynamic.Dispatch("HWPFrame.HwpObject")
+        # 사전 등록된 보안 모듈을 로드해 보안 승인 창을 억제한다.
+        # (먼저 `python register_hwp.py` 로 레지스트리에 모듈을 등록해야 함)
         try:
-            hwp.RegisterModule("FilePathCheckDLL", "FilePathChecker")
+            hwp.RegisterModule("FilePathCheckDLL", "FilePathCheckerModule")
         except Exception:
             pass
-        # 포맷 ""=자동 감지. 안 되면 "MS Word" 명시로 재시도.
         opened = hwp.Open(_abs(src), "", "")
         if not opened:
-            opened = hwp.Open(_abs(src), "MS Word", "")
+            opened = hwp.Open(_abs(src), "MS Word", "")   # 포맷 자동 감지 실패 시 명시
         if not opened:
             raise RuntimeError("한컴오피스가 .docx 를 열지 못했습니다(가져오기 필터 확인 필요)")
         hwp.SaveAs(_abs(out), "HWP", "")
@@ -82,7 +87,7 @@ def to_hwp(docx_path) -> Path:
     finally:
         if hwp is not None:
             try:
-                hwp.Clear(1)        # 1 = 저장 없이 닫기
+                hwp.Clear(1)   # 1 = 저장 없이 닫기
             except Exception:
                 pass
             try:

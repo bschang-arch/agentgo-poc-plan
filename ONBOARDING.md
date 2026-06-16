@@ -28,6 +28,7 @@
 |---|---|
 | `generate_plan.py` | **생성기 본체.** 입력 JSON → 템플릿 치환 → `.docx` 출력. 고객사명 안전장치, 일정 재계산, 변경 이력, PDF/HWP 변환 옵션 포함 |
 | `convert.py` | (선택) 생성된 `.docx` → PDF(Word COM)/HWP(한컴 COM) 변환. 서식 보존 |
+| `register_hwp.py` | (선택) HWP 자동화용 한컴 보안 모듈 1회 등록 (pyhwpx의 DLL 사용) |
 | `draft_inputs.py` | (선택) 자유 서술 → 입력 JSON 초안 생성 (Gemini, JSON 출력 모드) |
 | `call_gemini.py` | Gemini API 호출 예제 + `.env` 키 로드. `load_api_key()`를 다른 스크립트가 재사용 |
 | `gemini_dev.py` | (선택) Gemini 개발 보조 CLI. 컨텍스트+소스+질문 전송, 민감 파일 차단 |
@@ -124,7 +125,8 @@ python gemini_dev.py --file generate_plan.py "PDF 출력 옵션 추가 방법은
 python generate_plan.py ... --pdf --hwp           # 생성과 동시에 변환
 python convert.py "out/수행계획서_생성본.docx" --pdf   # 기존 docx만 변환
 ```
-> PDF=MS Word, HWP=한컴오피스 필요. HWP는 보안 승인 창에 "허용"해야 하며 헤드리스에선 멈출 수 있음.
+> PDF=MS Word(✅ 검증됨). HWP=한컴오피스 필요 + `pip install pyhwpx && python register_hwp.py`(보안 모듈 1회 등록).
+> 단 한컴 2018은 COM `Open`이 외부 포맷(docx 등)을 못 열어 자동 변환이 안 됨 → 한컴 GUI에서 수동 "HWP로 저장" 권장.
 
 **에이전트형 코딩 (Gemini CLI)** — `.env`(키)·`GEMINI.md`(컨텍스트) 자동 인식
 ```bash
@@ -184,8 +186,9 @@ python generate_plan.py ... --no-history                         # 이번 실행
 - KPI·회의주기 등 표기 변형이 큰 항목은 자동 치환하지 않고 콘솔에 보고만 함.
 - Gemini 무료 등급은 **하루 요청 수 제한**(모델별, 예: 20/일)이 있어 에이전트형 CLI는
   쉽게 소진된다. 막히면 다음 날 리셋 또는 유료 등급으로 전환.
-- HWP 변환은 한컴 **보안 모듈** 미등록 시 보안 승인 창이 떠 헤드리스 자동화가 멈춘다.
-  대화형으로 실행해 "허용"하거나, 한컴에서 직접 "다른 이름으로 저장 → HWP" 사용.
+- HWP 변환: `register_hwp.py`로 보안 모듈을 등록하면 보안창 멈춤은 해결되나, **한컴 2018은
+  COM `Open`이 .docx/.doc/.rtf 등 외부 포맷을 열지 못해**(SaveAs는 정상) 자동 변환이 안 된다.
+  → 생성된 `.docx`/PDF를 한컴 GUI에서 열어 "다른 이름으로 저장 → HWP". (다른 한컴 빌드에선 COM 변환이 될 수 있음)
 
 ---
 

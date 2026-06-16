@@ -14,6 +14,7 @@
 |---|---|
 | `generate_plan.py` | 생성기 본체 (python-docx 기반) |
 | `convert.py` | (선택) 생성된 .docx → PDF/HWP 변환 (MS Word/한컴 COM) |
+| `register_hwp.py` | (선택) HWP 자동화용 한컴 보안 모듈 1회 등록 |
 | `draft_inputs.py` | (선택) 자유 서술 → 입력 JSON 초안 생성 (Gemini 연계) |
 | `call_gemini.py` | Gemini API 호출 예제 (키는 `.env`/`*.env`에서 로드) |
 | `gemini_dev.py` | (선택) Gemini 개발 보조 CLI — 컨텍스트+소스+질문 전송, 민감파일 차단 |
@@ -76,10 +77,15 @@ python generate_plan.py ... --pdf          # 생성과 동시에 PDF도 출력 (
 python generate_plan.py ... --pdf --hwp    # PDF + HWP (한컴오피스)
 python convert.py "out/수행계획서_생성본.docx" --pdf --hwp   # 기존 .docx만 변환
 ```
-- **PDF**: MS Word가 설치돼 있어야 합니다(COM 변환, 고품질).
-- **HWP**: 한컴오피스 필요. 변환 시 한컴 **보안 승인 창**이 뜨면 "허용"하세요.
-  헤드리스/자동 실행에서는 보안 모듈 미등록 시 멈출 수 있어, 대화형 실행을 권장합니다.
-  (대안: 생성된 PDF/`.docx`를 한컴에서 열어 "다른 이름으로 저장 → HWP")
+- **PDF**: MS Word가 설치돼 있어야 합니다(COM 변환, 고품질). ✅ 검증됨.
+- **HWP**: 한컴오피스 필요. 자동화 보안 승인 창을 막으려면 **보안 모듈을 1회 등록**합니다:
+  ```bash
+  pip install pyhwpx          # 보안 모듈 DLL 제공
+  python register_hwp.py      # 레지스트리에 보안 모듈 등록(1회)
+  ```
+  단, **한컴 버전/빌드에 따라 COM이 `.docx` 가져오기(Open)를 지원하지 않을 수 있습니다.**
+  (확인된 사례: 한컴 2018에선 COM `Open`이 .docx/.doc/.rtf 등 외부 포맷을 열지 못해 자동 변환 불가.)
+  이 경우 **생성된 `.docx` 또는 PDF를 한컴에서 열어 "다른 이름으로 저장 → HWP"** 로 처리하세요.
 - 변환 실패해도 `.docx` 생성 자체는 성공으로 두고 `[확인 필요]`에 사유를 남깁니다.
 
 > **안전장치 — 고객사명 치환 0건 시 중단**: 입력한 `_client_name_variants` 가
