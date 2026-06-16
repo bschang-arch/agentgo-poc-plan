@@ -9,3 +9,7 @@ google-genai>=1.0.0
 
 # .env 파일에서 환경변수 로드. 대안: 셸에서 직접 export하면 이 의존성은 불필요.
 python-dotenv>=1.0.0
+
+# PDF/HWP 변환용. 설치된 MS Word/한컴오피스를 COM으로 자동화해 .docx 서식을 보존한 채
+# 변환한다(재렌더링 금지). Windows 전용이라 환경 마커로 한정. 대안: LibreOffice soffice 서브프로세스.
+pywin32>=306; sys_platform == "win32"

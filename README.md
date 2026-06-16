@@ -13,6 +13,7 @@
 | 파일 | 설명 |
 |---|---|
 | `generate_plan.py` | 생성기 본체 (python-docx 기반) |
+| `convert.py` | (선택) 생성된 .docx → PDF/HWP 변환 (MS Word/한컴 COM) |
 | `draft_inputs.py` | (선택) 자유 서술 → 입력 JSON 초안 생성 (Gemini 연계) |
 | `call_gemini.py` | Gemini API 호출 예제 (키는 `.env`/`*.env`에서 로드) |
 | `gemini_dev.py` | (선택) Gemini 개발 보조 CLI — 컨텍스트+소스+질문 전송, 민감파일 차단 |
@@ -68,6 +69,19 @@ python generate_plan.py --output "out/수행계획서_생성본.docx" --show-his
 python generate_plan.py ... --no-history                                      # 이번 실행은 기록 안 함
 ```
 
+### PDF / HWP 출력
+서식 보존을 위해 새로 렌더링하지 않고 **설치된 오피스로 `.docx`를 변환**합니다.
+```bash
+python generate_plan.py ... --pdf          # 생성과 동시에 PDF도 출력 (MS Word)
+python generate_plan.py ... --pdf --hwp    # PDF + HWP (한컴오피스)
+python convert.py "out/수행계획서_생성본.docx" --pdf --hwp   # 기존 .docx만 변환
+```
+- **PDF**: MS Word가 설치돼 있어야 합니다(COM 변환, 고품질).
+- **HWP**: 한컴오피스 필요. 변환 시 한컴 **보안 승인 창**이 뜨면 "허용"하세요.
+  헤드리스/자동 실행에서는 보안 모듈 미등록 시 멈출 수 있어, 대화형 실행을 권장합니다.
+  (대안: 생성된 PDF/`.docx`를 한컴에서 열어 "다른 이름으로 저장 → HWP")
+- 변환 실패해도 `.docx` 생성 자체는 성공으로 두고 `[확인 필요]`에 사유를 남깁니다.
+
 > **안전장치 — 고객사명 치환 0건 시 중단**: 입력한 `_client_name_variants` 가
 > 템플릿의 실제 표기와 하나도 일치하지 않으면(치환 0건) **저장하지 않고 중단**합니다.
 > 치환이 안 되면 템플릿에 박힌 *이전 고객사명*이 새 문서에 그대로 남아 정보가
@@ -116,7 +130,7 @@ python generate_plan.py ... --no-history                                      # 
 - ✅ Gemini 연계: 자유 서술 → 입력 JSON 초안 (`draft_inputs.py`)
 - ✅ 수정·재생성: 입력 변경점 diff + 출력 문서별 변경 이력 (`--show-history`)
 - ✅ 빠진 값 체크: 필수값 누락·미확정(`[확인 필요]`)·형식 오류는 저장 전 차단(모든 문제 일괄 보고), 선택값 미입력은 알림
-- ⏳ 다음: 출력 포맷 확장(HWP/PDF)
+- ✅ 출력 포맷 확장: `--pdf`(MS Word), `--hwp`(한컴오피스) — 서식 보존 변환
 
 ## 알려진 한계
 - 치환 구간 내부의 부분 서식(굵게·색상)은 첫 런 서식으로 통일될 수 있음 → 출력본 육안 확인 권장
