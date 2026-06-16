@@ -68,8 +68,19 @@ def replace_in_paragraph(paragraph, old: str, new: str) -> int:
     return count
 
 
+def iter_all_paragraphs(doc):
+    """문서 본문 + 모든 섹션의 머리말/꼬리말 문단까지 순회한다.
+    (고객사명이 헤더/푸터에도 박혀 있어, 여기를 빼면 이전 고객사명이 머리말에
+    그대로 남아 유출된다. 치환은 멱등하므로 linked 헤더 중복 순회는 무해하다.)"""
+    yield from iter_paragraphs(doc)
+    for section in doc.sections:
+        for hf in (section.header, section.first_page_header, section.even_page_header,
+                   section.footer, section.first_page_footer, section.even_page_footer):
+            yield from iter_paragraphs(hf)
+
+
 def replace_everywhere(doc, old: str, new: str) -> int:
-    return sum(replace_in_paragraph(p, old, new) for p in iter_paragraphs(doc))
+    return sum(replace_in_paragraph(p, old, new) for p in iter_all_paragraphs(doc))
 
 
 # --- 가변 항목 주입 ----------------------------------------------------------
