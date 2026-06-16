@@ -266,14 +266,87 @@ def apply_optional_overrides(doc, data: dict) -> None:
 
 # --- 메인 --------------------------------------------------------------------
 
+# A그룹(필수) / B그룹(선택). 선택값은 없으면 템플릿 기본값을 쓰므로 차단하지 않고 알린다.
+REQUIRED_A = ["client_name", "start_date", "total_weeks", "poc_purpose",
+              "verify_tasks", "integration_targets", "solution_config", "client_pm"]
+OPTIONAL_B = ["kpi_targets", "infra_os", "use_nas", "meeting_cycle"]
+
+# draft_inputs.py가 모르는 값에 남기는 미확정 표시. 필수값에 이게 있으면 '안 채운 것'으로 본다.
+PLACEHOLDER = "[확인 필요]"
+
+
 def load_inputs(path: Path) -> dict:
-    data = json.loads(path.read_text(encoding="utf-8"))
-    required = ["client_name", "start_date", "total_weeks", "poc_purpose",
-                "verify_tasks", "integration_targets", "solution_config", "client_pm"]
-    missing = [k for k in required if not data.get(k)]
-    if missing:
-        sys.exit(f"필수 입력 누락(A그룹): {', '.join(missing)}")
-    return data
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _is_empty(v) -> bool:
+    if v is None:
+        return True
+    if isinstance(v, str):
+        return not v.strip()
+    if isinstance(v, (list, dict)):
+        return len(v) == 0
+    return False
+
+
+def _has_placeholder(v) -> bool:
+    """미확정 표시('[확인 필요]')가 (중첩 포함) 들어 있는지."""
+    if isinstance(v, str):
+        return PLACEHOLDER in v
+    if isinstance(v, dict):
+        return any(_has_placeholder(x) for x in v.values())
+    if isinstance(v, list):
+        return any(_has_placeholder(x) for x in v)
+    return False
+
+
+def validate_inputs(data: dict) -> tuple[list[str], list[str]]:
+    """입력값을 점검해 (차단 오류, 비차단 알림)을 돌려준다.
+    한 번에 모든 문제를 모아 보고해, 고치고 또 막히는 일을 줄인다."""
+    errors: list[str] = []
+    warnings: list[str] = []
+
+    # 필수(A): 존재 + 비어있지 않음 + 미확정('[확인 필요]') 아님
+    for k in REQUIRED_A:
+        v = data.get(k)
+        if _is_empty(v):
+            errors.append(f"필수값 '{k}' 누락(빈 값)")
+        elif _has_placeholder(v):
+            errors.append(f"필수값 '{k}' 가 미확정('{PLACEHOLDER}') 상태 — 실제 값으로 채우세요")
+
+    # 형식/타입 점검 (placeholder가 아닌 실제 값에 대해서만)
+    sd = data.get("start_date")
+    if isinstance(sd, str) and sd.strip() and PLACEHOLDER not in sd:
+        try:
+            datetime.strptime(sd, "%Y-%m-%d")
+        except ValueError:
+            errors.append(f"start_date '{sd}' 형식 오류 — YYYY-MM-DD 여야 함")
+
+    tw = data.get("total_weeks")
+    if not _is_empty(tw) and not _has_placeholder(tw):
+        try:
+            if int(tw) < 1:
+                errors.append(f"total_weeks 는 1 이상의 정수여야 함 (현재: {tw})")
+        except (ValueError, TypeError):
+            errors.append(f"total_weeks 가 정수가 아님 (현재: {tw!r})")
+
+    for k in ("verify_tasks", "solution_config"):
+        v = data.get(k)
+        if v is not None and not isinstance(v, list):
+            errors.append(f"{k} 는 목록(list)이어야 함 (현재 타입: {type(v).__name__})")
+    it = data.get("integration_targets")
+    if it is not None and not isinstance(it, dict):
+        errors.append(f"integration_targets 는 객체(object)여야 함 (현재 타입: {type(it).__name__})")
+
+    # 선택(B): 없으면 템플릿 기본값 사용 — 알림(비차단)
+    missing_opt = [k for k in OPTIONAL_B if _is_empty(data.get(k))]
+    if missing_opt:
+        warnings.append("선택값 미입력 → 템플릿/기본값 사용: " + ", ".join(missing_opt))
+    for k in OPTIONAL_B:
+        if not _is_empty(data.get(k)) and _has_placeholder(data.get(k)):
+            warnings.append(f"선택값 '{k}' 가 미확정('{PLACEHOLDER}') — 협의값으로 보정 권장")
+
+    return errors, warnings
 
 
 # --- 변경 이력 / 재생성 ------------------------------------------------------
@@ -404,6 +477,17 @@ def main():
         sys.exit(f"템플릿 없음: {template_path}")
 
     data = load_inputs(Path(args.input))
+
+    # 빠진 값/형식 점검: 선택값 미입력은 알리고, 필수값 누락·미확정·형식오류는 저장 전에 막는다.
+    errors, warnings = validate_inputs(data)
+    for w in warnings:
+        print(f"- 빠진 값 점검(알림): {w}")
+    if errors:
+        print("\n❌ 입력 검증 실패 — 다음을 수정한 뒤 다시 실행하세요:", file=sys.stderr)
+        for e in errors:
+            print(f"  - {e}", file=sys.stderr)
+        sys.exit(1)
+
     start = datetime.strptime(data["start_date"], "%Y-%m-%d").date()
     today = date.today()
 
