@@ -15,6 +15,8 @@
 | `generate_plan.py` | 생성기 본체 (python-docx 기반) |
 | `draft_inputs.py` | (선택) 자유 서술 → 입력 JSON 초안 생성 (Gemini 연계) |
 | `call_gemini.py` | Gemini API 호출 예제 (키는 `.env`/`*.env`에서 로드) |
+| `gemini_dev.py` | (선택) Gemini 개발 보조 CLI — 컨텍스트+소스+질문 전송, 민감파일 차단 |
+| `GEMINI_CONTEXT.md` | Gemini용 프로젝트 컨텍스트 브리핑 (개발 보조의 입력) |
 | `requirements.txt` | 의존성 |
 | `inputs.example.json` | 입력 예시 (가명) — 복사해 실제 값으로 채워 사용 |
 | `.env.example` | 비밀키 파일 형식 예시 (실제 키 없음) |
@@ -92,6 +94,12 @@ python generate_plan.py ... --no-history                                      # 
   [Google AI Studio](https://aistudio.google.com)에서 확인하세요.
 - **프라이버시**: Gemini는 외부 API이므로 전송 텍스트에 실명·연락처·고객 원문을
   넣지 마세요. 본 도구는 사용자가 입력한 brief만 보내며, 템플릿·생성본은 보내지 않습니다.
+- **개발을 Gemini로 (Claude 토큰 절약)**: `gemini_dev.py`에 `GEMINI_CONTEXT.md` 컨텍스트와
+  소스 파일·질문을 보내 코드/설계 답을 받습니다. 민감 파일(.docx, inputs.json, *.env 등)은
+  자동 차단됩니다.
+  ```bash
+  python gemini_dev.py --file generate_plan.py "PDF 출력 옵션 추가 방법은?"
+  ```
 
 ## 현재 범위 (MVP)
 - ✅ 필수 값 입력 → 가변 항목 자동 작성 → 표준 .docx 출력
