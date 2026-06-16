@@ -24,6 +24,27 @@ def _abs(p) -> str:
     return str(Path(p).resolve())
 
 
+# Word 자동화는 문서 로딩 중 잠깐 바쁘면 호출을 거부한다(일시 오류). 재시도로 넘긴다.
+_RETRYABLE_HRESULTS = (-2147418111,  # RPC_E_CALL_REJECTED (피호출자가 호출을 거부)
+                       -2147417846)  # RPC_E_SERVERCALL_RETRYLATER
+
+
+def _com_retry(func, tries: int = 10, delay: float = 0.5):
+    import time
+    import pywintypes
+    last = None
+    for _ in range(tries):
+        try:
+            return func()
+        except pywintypes.com_error as e:
+            if e.args and e.args[0] in _RETRYABLE_HRESULTS:
+                last = e
+                time.sleep(delay)
+                continue
+            raise
+    raise last
+
+
 def to_pdf(docx_path) -> Path:
     """MS Word COM으로 .docx → .pdf. 같은 이름의 .pdf 경로를 반환."""
     src = Path(docx_path)
@@ -32,16 +53,18 @@ def to_pdf(docx_path) -> Path:
     out = src.with_suffix(".pdf")
 
     import pythoncom
-    import win32com.client as win32
+    from win32com.client import gencache
     pythoncom.CoInitialize()
     word = None
     try:
-        word = win32.DispatchEx("Word.Application")
+        # early-binding(EnsureDispatch): 타입라이브러리로 Document.SaveAs 등을 제대로 해석한다.
+        # (순수 late-binding은 Word Document 메서드를 해석하지 못함)
+        word = gencache.EnsureDispatch("Word.Application")
         word.Visible = False
         word.DisplayAlerts = 0
-        doc = word.Documents.Open(_abs(src))           # (FileName)
-        doc.SaveAs(_abs(out), 17)                       # (FileName, FileFormat=wdFormatPDF)
-        doc.Close(0)                                    # 0 = 저장 안 함(이미 SaveAs로 PDF 저장)
+        doc = _com_retry(lambda: word.Documents.Open(_abs(src)))   # (FileName)
+        _com_retry(lambda: doc.SaveAs(_abs(out), 17))              # 17 = wdFormatPDF
+        doc.Close(0)                                               # 0 = 저장 안 함(이미 PDF 저장됨)
         return out
     finally:
         if word is not None:
