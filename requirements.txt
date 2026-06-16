@@ -2,3 +2,10 @@
 # 대안: docxtpl(Jinja 템플릿 방식)도 있으나, 기준 템플릿이 플레이스홀더 없는 완성 문서라
 #       기존 서식을 그대로 둔 채 값만 바꾸는 본 방식에는 python-docx가 더 직접적.
 python-docx>=1.1.0
+
+# Gemini API 호출용 공식 SDK. 구 google-generativeai는 신규 SDK로 대체되는 추세라
+# 신규 통합 SDK(google-genai)를 사용. 대안: REST 엔드포인트를 requests로 직접 호출.
+google-genai>=1.0.0
+
+# .env 파일에서 환경변수 로드. 대안: 셸에서 직접 export하면 이 의존성은 불필요.
+python-dotenv>=1.0.0

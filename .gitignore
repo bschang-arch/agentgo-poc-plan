@@ -14,6 +14,13 @@ inputs.*.json
 # 한빛 PRD 인터뷰 스킬 패키지(이 프로젝트와 무관한 별도 산출물)
 *.skill
 
+# --- 비밀키 / 환경변수 (절대 커밋 금지) ---
+# API 키 등 비밀값. 예시(.env.example)만 커밋한다.
+.env
+.env.*
+*.env
+!.env.example
+
 # --- 로컬 설정 / 캐시 ---
 .claude/
 *.tmp
