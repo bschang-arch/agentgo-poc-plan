@@ -13,8 +13,11 @@
 | 파일 | 설명 |
 |---|---|
 | `generate_plan.py` | 생성기 본체 (python-docx 기반) |
+| `draft_inputs.py` | (선택) 자유 서술 → 입력 JSON 초안 생성 (Gemini 연계) |
+| `call_gemini.py` | Gemini API 호출 예제 (키는 `.env`/`*.env`에서 로드) |
 | `requirements.txt` | 의존성 |
 | `inputs.example.json` | 입력 예시 (가명) — 복사해 실제 값으로 채워 사용 |
+| `.env.example` | 비밀키 파일 형식 예시 (실제 키 없음) |
 | `PRD.md` | 제품 요구사항 |
 | `template-spec.md` | 입력값 ↔ 문서 섹션/셀 매핑 사양 |
 | `KICKOFF.md` | 개발 착수 지시문 |
@@ -27,9 +30,19 @@
 pip install -r requirements.txt
 ```
 
+## (선택) AI로 입력 초안 만들기 — `draft_inputs.py`
+사업 개요를 자유롭게 적으면 Gemini가 입력 스키마에 맞춰 `inputs.draft.json` **초안**을 만들어 줍니다.
+손으로 JSON을 쓰는 마찰을 줄이는 용도이며, 결과는 반드시 검토·보정 후 사용합니다.
+```bash
+python draft_inputs.py --brief "고객사 PoC 6주, 7/6 시작, M365·기간계 연동, RAG 검증"
+# → inputs.draft.json 생성 (모르는 값은 "[확인 필요]"로 표시)
+```
+> ⚠️ `--brief` 텍스트는 **외부 API(Gemini)로 전송**됩니다. 실명·연락처 등 민감정보는
+> 넣지 말고 직무·등급으로 마스킹해 적으세요. 키는 `.env`/`*.env`에서 읽습니다([Gemini 연계](#gemini-연계) 참조).
+
 ## 사용법
-1. `inputs.example.json`을 복사해 `inputs.json`을 만들고 실제 값을 채웁니다.
-   (`inputs.json`은 `.gitignore`로 커밋에서 제외됩니다.)
+1. 입력 JSON 준비 — `inputs.example.json`을 복사해 `inputs.json`을 만들고 실제 값을 채웁니다.
+   (`draft_inputs.py`로 만든 `inputs.draft.json`을 보정해 써도 됩니다. 두 파일 모두 `.gitignore`로 커밋 제외.)
 2. 실행:
 ```bash
 python generate_plan.py \
@@ -54,8 +67,21 @@ python generate_plan.py \
 `_client_name_variants` 에는 템플릿에 박힌 고객사명의 **모든 표기 변형**을 넣어야
 모든 위치가 치환됩니다(한 표기만 넣으면 다른 표기가 누락됨).
 
+## Gemini 연계
+입력 초안 생성(`draft_inputs.py`)과 호출 예제(`call_gemini.py`)에 쓰입니다.
+- **키 보관**: API 키는 코드에 하드코딩하지 않고 `.env`(또는 임의 `*.env`) 파일에
+  `GEMINI_API_KEY=...` 형식으로 둡니다. `.env`/`*.env`는 `.gitignore`로 커밋 제외되며,
+  형식 예시는 `.env.example` 참조. (`GOOGLE_API_KEY` 도 인식)
+- **설치**: `pip install -r requirements.txt` (google-genai, python-dotenv 포함)
+- **호출 테스트**: `python call_gemini.py "한 문장으로 자기소개 해줘"`
+- **모델**: 기본 `gemini-2.5-flash`, `--model` 로 변경. 사용 가능 모델은
+  [Google AI Studio](https://aistudio.google.com)에서 확인하세요.
+- **프라이버시**: Gemini는 외부 API이므로 전송 텍스트에 실명·연락처·고객 원문을
+  넣지 마세요. 본 도구는 사용자가 입력한 brief만 보내며, 템플릿·생성본은 보내지 않습니다.
+
 ## 현재 범위 (MVP)
 - ✅ 필수 값 입력 → 가변 항목 자동 작성 → 표준 .docx 출력
+- ✅ Gemini 연계: 자유 서술 → 입력 JSON 초안 (`draft_inputs.py`)
 - ⏳ 다음: 수정·재생성, 빠진 값 체크, 출력 포맷 확장(HWP/PDF)
 
 ## 알려진 한계
