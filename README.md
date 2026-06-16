@@ -39,6 +39,13 @@ python generate_plan.py \
 ```
 3. 실행 종료 시 콘솔에 출력되는 **[확인 필요]** 항목을 제출 전 검토하세요.
 
+> **안전장치 — 고객사명 치환 0건 시 중단**: 입력한 `_client_name_variants` 가
+> 템플릿의 실제 표기와 하나도 일치하지 않으면(치환 0건) **저장하지 않고 중단**합니다.
+> 치환이 안 되면 템플릿에 박힌 *이전 고객사명*이 새 문서에 그대로 남아 정보가
+> 유출되기 때문입니다. 콘솔의 변형별 매칭 건수(예: `ABC:2, ABC사:0`)로 0건 변형(오타)을
+> 확인하세요. 가명 예시(`inputs.example.json`)로 동작만 볼 때는 `--allow-no-client-name`
+> 를 붙이면 경고만 남기고 진행합니다(실제 문서 생성에는 사용 금지).
+
 ## 입력 값 (필수 8개)
 `client_name`, `start_date`, `total_weeks`, `poc_purpose`, `verify_tasks`,
 `integration_targets`, `solution_config`, `client_pm`

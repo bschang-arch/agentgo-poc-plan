@@ -74,17 +74,20 @@ def replace_everywhere(doc, old: str, new: str) -> int:
 
 # --- 가변 항목 주입 ----------------------------------------------------------
 
-def replace_client_name(doc, client_name: str, variants: list[str]) -> int:
+def replace_client_name(doc, client_name: str, variants: list[str]) -> dict[str, int]:
     """고객사명 변형 표기를 모두 입력값으로 치환.
     client_name 자체가 짧은 변형을 부분 문자열로 포함하면 직접 치환 시
     'creCREinc'처럼 누적 오염이 생긴다. 이를 막기 위해 모든 변형을 먼저 고유
-    센티넬로 바꾼 뒤(긴 변형 우선), 센티넬을 client_name으로 한 번에 복원한다."""
+    센티넬로 바꾼 뒤(긴 변형 우선), 센티넬을 client_name으로 한 번에 복원한다.
+
+    반환: {변형: 치환건수}. 호출부가 0건 변형(오타·미사용 표기)과 총 0건(치환
+    실패로 이전 고객사명이 문서에 잔존하는 위험)을 구분해 경고/중단하도록 한다."""
     sentinel = "CLIENT_NAME"
-    total = 0
+    per_variant: dict[str, int] = {}
     for variant in sorted(set(variants), key=len, reverse=True):
-        total += replace_everywhere(doc, variant, sentinel)
+        per_variant[variant] = replace_everywhere(doc, variant, sentinel)
     replace_everywhere(doc, sentinel, client_name)
-    return total
+    return per_variant
 
 
 def set_cover_and_revision(doc, today: date, author: str, approver: str,
@@ -284,6 +287,9 @@ def main():
     ap.add_argument("--template", required=True)
     ap.add_argument("--input", required=True)
     ap.add_argument("--output", required=True)
+    ap.add_argument("--allow-no-client-name", action="store_true",
+                    help="고객사명 치환 0건이어도 중단하지 않고 경고만 표시 "
+                         "(가명 예시·테스트용. 실제 문서 생성에는 쓰지 말 것)")
     args = ap.parse_args()
 
     template_path = Path(args.template)
@@ -299,8 +305,35 @@ def main():
 
     # 템플릿에 박힌 고객사명 표기 변형 목록. 입력에서 받고, 없으면 client_name 단일값.
     variants = data.get("_client_name_variants") or [data["client_name"]]
-    n = replace_client_name(doc, data["client_name"], variants)
-    print(f"- 고객사명 치환: {n}건")
+    per_variant = replace_client_name(doc, data["client_name"], variants)
+    n = sum(per_variant.values())
+    print(f"- 고객사명 치환: {n}건 (" +
+          ", ".join(f"{v}:{c}" for v, c in per_variant.items()) + ")")
+
+    # 0건 변형은 표기 오타이거나 템플릿에 없는 표기 — 검토 항목으로만 보고.
+    for v, c in per_variant.items():
+        if c == 0:
+            review_notes.append(
+                f"고객사명 변형 '{v}' 이(가) 템플릿에서 한 번도 발견되지 않음"
+                " — 표기 오타이거나 불필요한 항목인지 확인")
+
+    # 총 0건은 위험 신호: 치환이 전혀 안 됐다면 템플릿의 '이전 고객사명'이 그대로
+    # 남아 개인정보가 유출될 수 있다. 기본은 저장 전에 중단하고, 가명 예시·테스트에
+    # 한해 --allow-no-client-name 으로 경고만 남기고 진행한다.
+    if n == 0:
+        guidance = (
+            "고객사명 치환 0건 — 입력한 변형이 템플릿의 실제 표기와 하나도 일치하지 않습니다.\n"
+            "  이대로 저장하면 템플릿에 박힌 '이전 고객사명'이 새 문서에 그대로 남아\n"
+            "  개인정보·고객사 정보가 유출될 수 있습니다.\n"
+            "  → inputs의 _client_name_variants 에 템플릿에 실제로 박힌 표기(모든 변형)를 넣으세요.")
+        if args.allow_no_client_name:
+            print(f"\n⚠️  경고: {guidance}")
+            review_notes.append(
+                "고객사명 치환 0건 상태로 강제 진행됨(--allow-no-client-name)"
+                " — 출력 문서에 남은 이전 고객사명을 반드시 직접 확인할 것")
+        else:
+            sys.exit(f"\n❌ 중단(저장 안 함): {guidance}\n"
+                     "  (가명 예시로 의도한 동작이면 --allow-no-client-name 옵션으로 진행)")
 
     review_notes += set_cover_and_revision(
         doc, today, data.get("author", ""), data.get("approver", ""),
