@@ -1,0 +1,34 @@
+# --- 민감정보 / 산출물 (절대 커밋 금지) ---
+# 워드 템플릿·생성본에는 고객사·개인정보가 들어 있어 제외한다.
+*.docx
+*.doc
+*.hwp
+*.hwpx
+out/
+
+# 실제 값이 든 입력 파일. 예시(inputs.example.json)만 커밋한다.
+inputs.json
+inputs.*.json
+!inputs.example.json
+
+# 한빛 PRD 인터뷰 스킬 패키지(이 프로젝트와 무관한 별도 산출물)
+*.skill
+
+# --- 로컬 설정 / 캐시 ---
+.claude/
+*.tmp
+*.tmp.*
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+
+# --- OS / 에디터 ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

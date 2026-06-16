@@ -1,0 +1,39 @@
+{
+  "_comment": "예시 입력. 실제 실행 시 이 파일을 복사해 inputs.json 등으로 만들고 실제 값을 채우세요. inputs.json은 .gitignore로 커밋에서 제외됩니다. 실명·고객사·연락처 등 민감정보는 커밋 대상 파일에 넣지 마세요.",
+
+  "client_name": "예시고객사",
+  "start_date": "2026-07-06",
+  "total_weeks": 6,
+  "poc_purpose": "업무 효율 및 완결을 위한 Agentic AI PoC 수행 — 고객 실제 환경에 시범 적용해 기능·성능·보안 요구 충족 여부를 검증하고 본사업 타당성을 확보한다.",
+  "verify_tasks": [
+    "문서 Embedding 및 RAG 검색 정합성 검증",
+    "Coder를 이용한 Agent 개발 및 수정 검증",
+    "Flow를 이용한 Agent 개발 및 수정 검증",
+    "기간계 시스템 연계 검증",
+    "M365 연계 Agent 개발 및 수정 검증"
+  ],
+  "integration_targets": {
+    "sso": "고객사 SSO",
+    "legacy_system": true,
+    "m365": true
+  },
+  "solution_config": [
+    "AgentGo Enterprise (기본 LLM 적용)",
+    "AgentGo Coder for Professional (사용자 수 협의)",
+    "AgentGo Standard Flow (vCPU 기준 협의)"
+  ],
+  "client_pm": "예시고객사 PM [담당자 직급 / 010-****-**** / name@example.com]",
+
+  "kpi_targets": { "accuracy": "95% 이상", "usability": "4.0점 이상(5점 만점)" },
+  "infra_os": "1안_Ubuntu 22.04 LTS, 2안_Rocky Linux 8 또는 9",
+  "use_nas": true,
+  "meeting_cycle": "격주",
+  "author": "[작성자]",
+  "approver": "[승인자]",
+
+  "_client_name_variants": ["예시고객사"],
+  "_template_revision_authors": [],
+
+  "_client_name_variants_note": "기준 템플릿에 박힌 고객사명의 모든 표기 변형을 나열하세요(예: 'ABC', 'ABC INC', 'ABC사'). 한 표기만 적으면 다른 표기가 치환되지 않습니다.",
+  "_template_revision_authors_note": "템플릿 개정이력에 들어 있던 이전 작성자/승인자 실명. 신규 문서 생성 시 제거 대상으로만 쓰입니다."
+}
