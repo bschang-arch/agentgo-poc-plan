@@ -276,6 +276,98 @@ def load_inputs(path: Path) -> dict:
     return data
 
 
+# --- 변경 이력 / 재생성 ------------------------------------------------------
+# 재생성 시 '직전 입력'과 현재 입력의 차이를 보여주고, 출력 문서별 이력 파일에
+# 변경 로그를 누적한다. 비교 대상은 docx가 아니라 입력 JSON이다(의미가 명확하고
+# 로컬에만 머물러 안전). 이력 파일은 입력값 스냅샷을 담으므로 출력과 같은 위치
+# (out/ → .gitignore)에 두어 커밋되지 않게 한다.
+
+_MISSING = object()
+
+
+def _is_noise_key(key: str) -> bool:
+    """주석·설명용 키(_comment, *_note)는 변경 비교에서 제외한다."""
+    return key == "_comment" or key.endswith("_note") or key.endswith("_comment")
+
+
+def history_path(output: Path) -> Path:
+    return output.with_suffix(output.suffix + ".history.json")
+
+
+def load_history(hist_path: Path) -> dict:
+    if hist_path.exists():
+        try:
+            return json.loads(hist_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            return {}  # 손상된 이력은 무시하고 새로 시작(생성 자체는 막지 않음)
+    return {}
+
+
+def diff_inputs(old: dict, new: dict) -> list[str]:
+    """두 입력 스냅샷의 차이를 사람이 읽을 한국어 변경 목록으로 만든다."""
+    changes: list[str] = []
+
+    def fmt(v):
+        return json.dumps(v, ensure_ascii=False) if isinstance(v, (dict, list)) else str(v)
+
+    def walk(prefix, o, n):
+        if prefix and _is_noise_key(prefix.split(".")[-1]):
+            return
+        if isinstance(o, dict) or isinstance(n, dict):
+            o = o if isinstance(o, dict) else {}
+            n = n if isinstance(n, dict) else {}
+            for k in sorted(set(o) | set(n)):
+                walk(f"{prefix}.{k}" if prefix else k,
+                     o.get(k, _MISSING), n.get(k, _MISSING))
+        elif isinstance(o, list) or isinstance(n, list):
+            if o != n:
+                ol = o if isinstance(o, list) else []
+                nl = n if isinstance(n, list) else []
+                added = [x for x in nl if x not in ol]
+                removed = [x for x in ol if x not in nl]
+                parts = []
+                if added:
+                    parts.append("추가 " + ", ".join(fmt(x) for x in added))
+                if removed:
+                    parts.append("제거 " + ", ".join(fmt(x) for x in removed))
+                changes.append(f"{prefix}: " + ("; ".join(parts) if parts else "순서/내용 변경"))
+        elif o != n:
+            if o is _MISSING:
+                changes.append(f"{prefix} 추가: {fmt(n)}")
+            elif n is _MISSING:
+                changes.append(f"{prefix} 제거")
+            else:
+                changes.append(f"{prefix}: {fmt(o)} → {fmt(n)}")
+
+    walk("", old, new)
+    return changes
+
+
+def append_history(hist_path: Path, output: Path, data: dict, changes: list[str]) -> None:
+    """이번 재생성을 이력에 기록. 다음 diff를 위해 최신 입력 스냅샷도 보관한다."""
+    revisions = load_history(hist_path).get("revisions", [])
+    revisions.append({
+        "at": datetime.now().isoformat(timespec="seconds"),
+        "changes": changes or ["(입력 변경 없음)"],
+    })
+    hist_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {"document": str(output), "last_inputs": data, "revisions": revisions}
+    hist_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+                         encoding="utf-8")
+
+
+def print_history(hist_path: Path) -> None:
+    revisions = load_history(hist_path).get("revisions", [])
+    if not revisions:
+        print(f"이력 없음: {hist_path}")
+        return
+    print(f"재생성 이력 — 총 {len(revisions)}회")
+    for i, rev in enumerate(revisions, 1):
+        print(f"\n[{i}] {rev.get('at', '')}")
+        for c in rev.get("changes", []):
+            print(f"    - {c}")
+
+
 def main():
     # Windows 콘솔(cp949)에서 한글·em-dash 출력이 깨지지 않도록 UTF-8로 고정.
     try:
@@ -284,13 +376,28 @@ def main():
         pass
 
     ap = argparse.ArgumentParser(description="수행 계획서 .docx 자동 생성기 (MVP)")
-    ap.add_argument("--template", required=True)
-    ap.add_argument("--input", required=True)
+    ap.add_argument("--template")
+    ap.add_argument("--input")
     ap.add_argument("--output", required=True)
     ap.add_argument("--allow-no-client-name", action="store_true",
                     help="고객사명 치환 0건이어도 중단하지 않고 경고만 표시 "
                          "(가명 예시·테스트용. 실제 문서 생성에는 쓰지 말 것)")
+    ap.add_argument("--show-history", action="store_true",
+                    help="이 출력 문서(--output)의 재생성 변경 이력을 출력하고 종료")
+    ap.add_argument("--no-history", action="store_true",
+                    help="이번 실행을 변경 이력에 기록하지 않음")
     args = ap.parse_args()
+
+    out_path = Path(args.output)
+    hist_path = history_path(out_path)
+
+    # 이력 조회 모드: 생성 없이 과거 변경 이력만 보여주고 종료.
+    if args.show_history:
+        print_history(hist_path)
+        return
+
+    if not args.template or not args.input:
+        ap.error("--template 와 --input 은 필수입니다 (--show-history 제외).")
 
     template_path = Path(args.template)
     if not template_path.exists():
@@ -299,6 +406,20 @@ def main():
     data = load_inputs(Path(args.input))
     start = datetime.strptime(data["start_date"], "%Y-%m-%d").date()
     today = date.today()
+
+    # 직전 생성과의 입력 차이(변경 이력)를 계산해 보여준다.
+    prev_inputs = load_history(hist_path).get("last_inputs")
+    if prev_inputs is None:
+        change_log = ["초기 생성"]
+        print("- 변경 이력: 첫 생성(이전 이력 없음)")
+    else:
+        change_log = diff_inputs(prev_inputs, data)
+        if change_log:
+            print(f"- 변경 이력: 직전 대비 {len(change_log)}건 변경")
+            for c in change_log:
+                print(f"    · {c}")
+        else:
+            print("- 변경 이력: 직전과 입력 동일(내용 변경 없음)")
 
     doc = Document(str(template_path))
     review_notes: list[str] = []
@@ -354,10 +475,14 @@ def main():
 
     apply_optional_overrides(doc, data)
 
-    out_path = Path(args.output)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     doc.save(str(out_path))
     print(f"\n생성 완료: {out_path}")
+
+    # 변경 이력 기록(저장 성공 후). 다음 재생성의 diff 기준이 될 입력 스냅샷도 함께 보관.
+    if not args.no_history:
+        append_history(hist_path, out_path, data, change_log)
+        print(f"이력 기록: {hist_path}  (--show-history 로 조회)")
 
     # 검토 필요 항목 요약(본문 오염 없이 콘솔로만)
     print("\n[확인 필요 — 제출 전 검토]")
