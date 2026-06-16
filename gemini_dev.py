@@ -1,13 +1,13 @@
 """Gemini 개발 보조 CLI.
 
-프로젝트 컨텍스트(GEMINI_CONTEXT.md) + 선택한 소스 파일 + 질문을 Gemini에 보내
+프로젝트 컨텍스트(GEMINI.md) + 선택한 소스 파일 + 질문을 Gemini에 보내
 코드/설계 답을 받는다. 이 스크립트를 '직접' 터미널에서 돌리면 개발 질의가
 Gemini로 처리되어(=Gemini 토큰 사용) Claude 세션 비용을 들이지 않는다.
 
 설계 메모(왜):
 - 프로젝트 원칙상 개인정보·고객사 원문은 외부로 보내지 않는다. 그래서 민감 파일
   (.env/*.env, *.docx, 실제 inputs.json, 이력 파일)은 --file 로 줘도 전송을 거부한다.
-- 컨텍스트는 GEMINI_CONTEXT.md 한 장으로 고정해 매 호출 토큰을 절약한다.
+- 컨텍스트는 GEMINI.md 한 장으로 고정해 매 호출 토큰을 절약한다(Gemini CLI도 같은 파일을 읽음).
 
 사용:
     python gemini_dev.py "generate_plan.py에 PDF 출력 옵션을 어떻게 추가할까?"
@@ -67,8 +67,8 @@ def main() -> None:
     ap.add_argument("prompt", help="개발 질문/요청")
     ap.add_argument("--file", action="append", default=[],
                     help="함께 보낼 소스 파일 (반복 가능). 민감 파일은 자동 차단")
-    ap.add_argument("--context", default="GEMINI_CONTEXT.md",
-                    help="프로젝트 컨텍스트 문서 (기본: GEMINI_CONTEXT.md)")
+    ap.add_argument("--context", default="GEMINI.md",
+                    help="프로젝트 컨텍스트 문서 (기본: GEMINI.md)")
     ap.add_argument("--env-file", default=None, help="키가 든 env 파일(기본: 자동 탐색)")
     ap.add_argument("--model", default="gemini-2.5-flash", help="사용할 모델")
     args = ap.parse_args()

@@ -16,7 +16,7 @@
 | `draft_inputs.py` | (선택) 자유 서술 → 입력 JSON 초안 생성 (Gemini 연계) |
 | `call_gemini.py` | Gemini API 호출 예제 (키는 `.env`/`*.env`에서 로드) |
 | `gemini_dev.py` | (선택) Gemini 개발 보조 CLI — 컨텍스트+소스+질문 전송, 민감파일 차단 |
-| `GEMINI_CONTEXT.md` | Gemini용 프로젝트 컨텍스트 브리핑 (개발 보조의 입력) |
+| `GEMINI.md` | 프로젝트 컨텍스트 브리핑. `gemini_dev.py`와 **Gemini CLI**가 함께 읽음 |
 | `requirements.txt` | 의존성 |
 | `inputs.example.json` | 입력 예시 (가명) — 복사해 실제 값으로 채워 사용 |
 | `.env.example` | 비밀키 파일 형식 예시 (실제 키 없음) |
@@ -94,12 +94,22 @@ python generate_plan.py ... --no-history                                      # 
   [Google AI Studio](https://aistudio.google.com)에서 확인하세요.
 - **프라이버시**: Gemini는 외부 API이므로 전송 텍스트에 실명·연락처·고객 원문을
   넣지 마세요. 본 도구는 사용자가 입력한 brief만 보내며, 템플릿·생성본은 보내지 않습니다.
-- **개발을 Gemini로 (Claude 토큰 절약)**: `gemini_dev.py`에 `GEMINI_CONTEXT.md` 컨텍스트와
-  소스 파일·질문을 보내 코드/설계 답을 받습니다. 민감 파일(.docx, inputs.json, *.env 등)은
-  자동 차단됩니다.
-  ```bash
-  python gemini_dev.py --file generate_plan.py "PDF 출력 옵션 추가 방법은?"
-  ```
+- **개발을 Gemini로 (Claude 토큰 절약)**: 두 가지 경로가 있습니다.
+  - **Q&A 보조** — `gemini_dev.py`에 `GEMINI.md` 컨텍스트와 소스·질문을 보내 답을 받음.
+    민감 파일(.docx, inputs.json, *.env 등)은 자동 차단.
+    ```bash
+    python gemini_dev.py --file generate_plan.py "PDF 출력 옵션 추가 방법은?"
+    ```
+  - **에이전트형 코딩 CLI** — Google 공식 **Gemini CLI**로 편집·실행까지 Gemini가 수행.
+    프로젝트 폴더의 `GEMINI.md`(컨텍스트)와 `.env`(키)를 자동으로 읽습니다.
+    ```bash
+    npm install -g @google/gemini-cli      # 최초 1회
+    gemini -p "현재 진행 상황 요약하고 다음 작업 제안해줘"   # 비대화형 1회 실행
+    gemini                                  # 대화형 세션 시작
+    ```
+    > 키 인식: `.env` 의 `GEMINI_API_KEY` 를 자동 사용. (OAuth 로그인도 가능)
+    > 최초 실행 시 "신뢰된 폴더" 확인을 거칩니다. 대화형에서는 한 번 신뢰하면 기억되고,
+    > 자동/헤드리스 실행은 `GEMINI_CLI_TRUST_WORKSPACE=true` 를 지정하세요.
 
 ## 현재 범위 (MVP)
 - ✅ 필수 값 입력 → 가변 항목 자동 작성 → 표준 .docx 출력
