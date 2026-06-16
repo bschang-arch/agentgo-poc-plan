@@ -26,7 +26,7 @@
 
 | 파일 | 역할 |
 |---|---|
-| `generate_plan.py` | **생성기 본체.** 입력 JSON → 템플릿 치환 → `.docx` 출력. 고객사명 안전장치, 일정 재계산, 변경 이력, PDF/HWP 변환 옵션 포함 |
+| `generate_plan.py` | **생성기 본체.** 입력 JSON → 템플릿 치환 → `.docx` 출력. 입력 검증, 고객사명 안전장치, 일정 재계산, 변경 이력, `--pdf` 변환 포함 |
 | `convert.py` | (선택) 생성된 `.docx` → PDF 변환 (MS Word COM). 서식 보존 |
 | `draft_inputs.py` | (선택) 자유 서술 → 입력 JSON 초안 생성 (Gemini, JSON 출력 모드) |
 | `call_gemini.py` | Gemini API 호출 예제 + `.env` 키 로드. `load_api_key()`를 다른 스크립트가 재사용 |
@@ -36,7 +36,7 @@
 | `PRD.md` / `KICKOFF.md` | 제품 요구사항 / 개발 착수 지시 |
 | `inputs.example.json` | 입력 예시 (가명). 복사해 `inputs.json`으로 실제 값 채워 사용 |
 | `.env.example` | 비밀키 파일 형식 예시 (실제 키 없음) |
-| `requirements.txt` | 의존성 (python-docx, google-genai, python-dotenv) |
+| `requirements.txt` | 의존성 (python-docx, google-genai, python-dotenv, pywin32[win]) |
 
 > 기준 템플릿 `.docx`는 **저장소에 포함되지 않는다**(민감정보 → `.gitignore`).
 > 회사 표준 템플릿 파일을 직접 준비해 같은 폴더에 두고 `--template`으로 지정한다.
@@ -48,7 +48,7 @@
 **(A) 기본 생성 흐름**
 ```
 inputs.json  ──►  generate_plan.py  ──►  out/수행계획서_생성본.docx
-(필수 8 + 선택)      │  ├ 고객사명 치환 (변형 목록 → 센티넬 → client_name)
+(필수 8 + 선택)      │  ├ 고객사명 치환 (변형 목록 → 센티넬 → client_name; 본문·표·머리말·꼬리말)
                     │  ├ 표지 작성일/버전, 개정이력 v1.0 1행화(이전 실명 제거)
                     │  ├ 검증 대상 솔루션 문단 재작성
                     │  ├ 고객 측 비상연락망 신설
